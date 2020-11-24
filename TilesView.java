@@ -1,5 +1,6 @@
 package com.example.memorycanvas;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -29,7 +30,7 @@ class Card {
         this.visibility = visibility;
     }
 
-    int color, backColor = Color.DKGRAY, visibility;
+    int color, backColor = Color.argb(255,211, 211, 211), visibility;
     boolean isOpen = false; // цвет карты
     float x, y, width, height;
 
@@ -46,9 +47,12 @@ class Card {
         } else return false;
     }
 
-    public void setVisibility(Card c, Card card_one) {
-        c.color = Color.TRANSPARENT;
+    public void setVisibility(Card card_one, Card card_two) {
+        card_one.visibility = 0;
         card_one.color = Color.TRANSPARENT;
+
+        card_two.visibility = 0;
+        card_two.color = Color.TRANSPARENT;
     }
 }
 
@@ -60,23 +64,28 @@ public class TilesView extends View {
     // число открытых карт
     int openedCard = 0;
 
-    int first_color = 0; // первая карточка
-    int second_color = 0; // вторая карточка
+    int first_color = 0;
+    int second_color = 0;
     Card card_one = null;
     boolean flag = true;
 
-    ArrayList<Card> cards = new ArrayList<>();
+    boolean end = true;
 
-    //int width, height; // ширина и высота канвы
+    ArrayList<Card> cards = new ArrayList<>();
 
     int width = 150;
     int height = 250;
     int left = 50;
-    int top = 100;
-    int colors[] = { Color.BLUE, Color.GREEN, Color.MAGENTA, Color.RED,
-            Color.CYAN, Color.GRAY, Color.BLACK, Color.LTGRAY };
+    int top = 120;
+    int colors[] = { Color.argb(255,255,127,80),
+            Color.argb(255,255,215,0),
+            Color.argb(255,189,183, 107),
+            Color.argb(255,95, 158, 160),
+            Color.argb(255,255, 228, 181),
+            Color.argb(255,216, 191, 216),
+            Color.argb(255,165, 42, 42),
+            Color.argb(255,107, 142, 35) };
     ArrayList<Integer> arr = new ArrayList<Integer>(Arrays.asList(0,1,2,3,4,5,6,7, 0,1,2,3,4,5,6,7));
-    //int[] arr = new int[]{1,2,3,4,5,6,7,8, 1,2,3,4,5,6,7,8}
 
     public TilesView(Context context) {
         super(context);
@@ -91,12 +100,12 @@ public class TilesView extends View {
         for(int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
                 cur_color = colors[arr.get(k)];
-                cards.add(new Card(left, top, width + 50, 100 + height, cur_color, 1));
+                cards.add(new Card(left, top, width + 50, 120 + height, cur_color, 1));
                 left = left +width + 110;
                 k++;
             }
             left = 50;
-            top = top + height + 150;
+            top = top + height + 170;
         }
     }
 
@@ -104,26 +113,39 @@ public class TilesView extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         for (Card c: cards) {
-            c.draw(canvas);
+            if (c.visibility != 0)
+                c.draw(canvas);
+        }
+        end = true;
+        for (Card c: cards) {
+            if (c.visibility != 0) {
+                end = false;
+                break;
+            }
+        }
+
+        if (end) {
+            Paint p;
+            p = new Paint();
+            p.setColor(Color.BLACK);
+            p.setTextSize(60);
+            p.setTextAlign(Paint.Align.CENTER);
+            canvas.drawText("ВЫ ВЫИГРАЛИ!", 250, 525, p);
         }
     }
-
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        // 3) получить координаты касания
         int x = (int) event.getX();
         int y = (int) event.getY();
 
-        // 4) определить тип события
         if (event.getAction() == MotionEvent.ACTION_DOWN && !isOnPauseNow)
         {
-            // палец коснулся экрана
-
             for (Card c: cards) {
-
+                if (c.visibility == 0)
+                    continue;
                 if (openedCard == 0) {
                     if (c.flip(x, y)) {
-                        Log.d("mytag", "card flipped: " + openedCard);
                         first_color = c.color;
                         card_one = c;
                         openedCard ++;
@@ -131,31 +153,31 @@ public class TilesView extends View {
                         return true;
                     }
                 }
-
                 if (openedCard == 1) {
-                    // перевернуть карту с задержкой
                     if (c.flip(x, y)) {
                         openedCard ++;
                         second_color = c.color;
-                        Log.d("mytag", "first color: " + first_color);
-                        Log.d("mytag", "second color: " + second_color);
-
-                        if (first_color == second_color){
-                            c.visibility = 0;
-                            card_one.visibility = 0;
-                            c.setVisibility(c, card_one);
-                            flag = false;
+                        if ((c.x == card_one.x) && (c.y == card_one.y)) {
+                            c.isOpen = isOnPauseNow = false;
                             PauseTask task = new PauseTask();
                             task.execute(PAUSE_LENGTH);
-                            isOnPauseNow = false;
+                            invalidate();
+                            return true;
+                        }
+
+                        if (first_color == second_color){
+                            c.visibility = card_one.visibility = 0;
+                            c.setVisibility(c, card_one);
+                            flag = isOnPauseNow = false;
+                            PauseTask task = new PauseTask();
+                            task.execute(PAUSE_LENGTH);
                             invalidate();
                         }
                         else{
-                        invalidate();
-                        flag = true;
-                        PauseTask task = new PauseTask();
-                        task.execute(PAUSE_LENGTH);
-                        isOnPauseNow = true;
+                            invalidate();
+                            flag = isOnPauseNow = true;
+                            PauseTask task = new PauseTask();
+                            task.execute(PAUSE_LENGTH);
                         }
                         return true;
                     }
@@ -166,7 +188,27 @@ public class TilesView extends View {
     }
 
     public void newGame() {
-        // запуск новой игры
+        end = false;
+        cards.clear();
+        int k = 0;
+        int cur_color;
+        width = 150;
+        height = 250;
+        left = 50;
+        top = 120;
+
+        Collections.shuffle(arr);
+        for(int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                cur_color = colors[arr.get(k)];
+                cards.add(new Card(left, top, width + 50, 120 + height, cur_color, 1));
+                left = left +width + 110;
+                k++;
+            }
+            left = 50;
+            top = top + height + 170;
+        }
+        invalidate();
     }
 
     class PauseTask extends AsyncTask<Integer, Void, Void> {
@@ -174,14 +216,11 @@ public class TilesView extends View {
         protected Void doInBackground(Integer... integers) {
             Log.d("mytag", "Pause started");
             try {
-                Thread.sleep(integers[0] * 1000); // передаём число секунд ожидания
+                Thread.sleep(integers[0] * 1000);
             } catch (InterruptedException e) {}
             Log.d("mytag", "Pause finished");
             return null;
         }
-
-        // после паузы, перевернуть все карты обратно
-
 
         @Override
         protected void onPostExecute(Void aVoid) {
