@@ -16,8 +16,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onNewGameClick(View v) {
-        view.newGame(); // запустить игру заново
-        // very useful comment
-
+        view.newGame();
     }
 }
